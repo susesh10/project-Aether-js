@@ -32,5 +32,6 @@ async def chat(request: ChatRequest):
     conversation_history.append({"role": "assistant","content": reply})
     return {
         "reply": f"Akari heard: {user_message}",
-        "emotion": "happy"
+        "emotion": "happy",
+        "history" : conversation_history
     }
