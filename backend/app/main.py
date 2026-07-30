@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 app = FastAPI(title="Akari")
 
-converstion_history = []
+conversation_history = []
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,10 +26,10 @@ async def health():
         }
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    converstion_history.append({"role": "user","content": request.message})
+    conversation_history.append({"role": "user","content": request.message})
     user_message = request.message
     reply = f"akari heard: {user_message}"
-    converstion_history.append({"role": "assistant","content": reply})
+    conversation_history.append({"role": "assistant","content": reply})
     return {
         "reply": f"Akari heard: {user_message}",
         "emotion": "happy"
