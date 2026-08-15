@@ -14,6 +14,12 @@ Modern Full-Stack AI Companion (Akari)
 ### Backend (to be created)
 - app/
   - main.py
+  - core/
+    - config.py
+  - schemas/
+    - chat.py
+  - services/
+    - ai.py
   - routers/
   - schemas/
   - services/
