@@ -46,6 +46,8 @@ async def chat(request: ChatRequest):
             "role": "assistant",
             "content": reply
         })
+        if len(conversation_history) >10 :
+            conversation_history[:] = conversation_history[-10:]
 
         return {
             "reply": reply,
