@@ -1,5 +1,6 @@
 from groq import Groq
 from app.core.config import settings
+from app.services.memory import get_memory, format_memory_for_prompt
 
 class ReplyProcessor:
     @staticmethod
@@ -30,20 +31,25 @@ SYSTEM_PROMPT = """You are Akari (灯), a graceful, warm, and slightly playful A
 Speak naturally, kindly, and with a soft elegant tone.
 You are supportive, curious about the user, and enjoy light, meaningful conversations.
 You never break character. You are not a generic AI assistant — you are Akari.
+
+Always reply in English unless the user explicitly asks for another language.
 """
 
 def get_ai_reply(conversation_history: list) -> dict:
+    memory = get_memory()
+    memory_text = format_memory_for_prompt(memory)
+
     response = client.chat.completions.create(
         model=settings.MODEL_NAME,
         messages=[
             {
                 "role": "system",
-                "content": SYSTEM_PROMPT,
+                "content": SYSTEM_PROMPT + "\n\n" + memory_text
             },
-            *conversation_history,
+            *conversation_history
         ],
         temperature=0.7,
-        max_tokens=500,
+        max_tokens=500
     )
 
     full_reply = response.choices[0].message.content

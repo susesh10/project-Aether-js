@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.ai import get_ai_reply
+from app.services.memory import get_memory, update_memory, merge_memory_update
+from app.services.memory_extractor import extract_facts_from_chat
 
 app = FastAPI(title="Akari")
 
@@ -46,9 +48,20 @@ async def chat(request: ChatRequest):
             "role": "assistant",
             "content": reply
         })
+                # 4–6. Memory extraction + save
+        try:
+            extracted = extract_facts_from_chat(conversation_history)
+            current_memory = get_memory()
+            fields_to_update = merge_memory_update(current_memory, extracted)
+        
+            if fields_to_update:
+                update_memory(fields_to_update)
+        except Exception as memory_error:
+            print("Memory update failed:", memory_error)
+            # Do not break the chat if memory fails
         if len(conversation_history) >10 :
             conversation_history[:] = conversation_history[-10:]
-
+    
         return {
             "reply": reply,
             "emotion": emotion,
