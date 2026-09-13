@@ -36,8 +36,15 @@ project-aether-js/
 ├── frontend/
 ├── blender/                          ← Main Blender folder
 │   ├── references/                   ← All reference images
-│   │   ├── front_view.png
-│   │   ├── side_view.png
+│   │   ├── elegant/
+│   │   │   ├── akari_elegant_technical.jpg
+│   │   │   ├── akari_elegant_design_notes.jpg
+│   │   ├── cozy_daily/
+│   │   │   ├──akari_cozy_daily_technical.jpg
+│   │   │   ├──akari_cozy_daily_design_notes_1.jpg
+│   │   │   ├──akari_cozy_daily_design_notes_2.jpg
+│   │   ├── dual/
+│   │   │   ├──akari_dual_elegant_cozy.jpg
 │   │   ├── three_quarter_view.png
 │   │   ├── expressions.png
 │   │   └── hair_options.png
