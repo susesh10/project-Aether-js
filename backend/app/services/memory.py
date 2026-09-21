@@ -65,3 +65,7 @@ def merge_memory_update(current: dict, extracted: dict) -> dict:
             updated[key] = merged
 
     return updated
+def clear_memory(user_id: str = DEFAULT_USER_ID) -> dict:
+    """Reset long-term memory to default empty values."""
+    memory_collection.delete_one({"user_id": user_id})
+    return get_memory(user_id)
