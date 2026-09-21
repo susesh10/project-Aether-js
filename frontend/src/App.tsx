@@ -13,6 +13,36 @@ function App() {
     e.target.style.height = "auto"
     e.target.style.height = `${e.target.scrollHeight}px`
   }
+  const playBackendSpeech = async (text: string) => {
+  if (!text.trim()) return
+
+  try {
+    const response = await fetch("http://localhost:8000/speak", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ message: text })
+    })
+
+    if (!response.ok) {
+      console.error("Speech request failed")
+      return
+    }
+
+    const audioBlob = await response.blob()
+    const audioUrl = URL.createObjectURL(audioBlob)
+    const audio = new Audio(audioUrl)
+
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl)
+    }
+
+    await audio.play()
+  } catch (error) {
+    console.error("Speech playback error:", error)
+  }
+}
 
   const sendMessage = async () => {
    if (isLoading) return
@@ -41,6 +71,7 @@ function App() {
  
      const data = await response.json()
      setChat(prev => [...prev, { role: "assistant", content: data.reply }])
+     await playBackendSpeech(data.reply)
    } catch (error) {
      console.error("Error sending message:", error)
      setChat(prev => [

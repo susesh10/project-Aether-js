@@ -3,9 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.ai import get_ai_reply
-from app.services.memory import get_memory, update_memory, merge_memory_update
+from app.services.memory import get_memory, update_memory, merge_memory_update, clear_memory
 from app.services.memory_extractor import extract_facts_from_chat
-
+from fastapi.responses import FileResponse
+from app.services.voice import text_to_speech
 app = FastAPI(title="Akari")
 
 app.add_middleware(
@@ -83,3 +84,47 @@ async def clear_history():
         "message": "Conversation history has been cleared",
         "status": "success"
     }
+@app.get("/memory")
+async def view_memory():
+    try:
+        memory = get_memory()
+        return {
+            "status": "success",
+            "memory": memory
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "memory": None
+        }
+
+
+@app.post("/clear-memory")
+async def reset_memory():
+    try:
+        memory = clear_memory()
+        return {
+            "status": "success",
+            "message": "Long-term memory has been cleared",
+            "memory": memory
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+@app.post("/speak")
+async def speak(request: ChatRequest):
+    try:
+        audio_path = await text_to_speech(request.message)
+        return FileResponse(
+            path=audio_path,
+            media_type="audio/mpeg",
+            filename="akari.mp3"
+        )
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
