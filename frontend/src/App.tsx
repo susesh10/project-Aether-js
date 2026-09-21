@@ -5,6 +5,7 @@ function App() {
   const [message, setMessage] = useState("")
   const [chat, setChat] = useState<{ role: string; content: string }[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isListening, setIsListening] = useState(false)
 
   const handleInput = (e: ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value)
@@ -89,6 +90,47 @@ function App() {
       sendMessage()
     }
   }
+  const startListening = () => {
+  const SpeechRecognition =
+    (window as any).SpeechRecognition ||
+    (window as any).webkitSpeechRecognition
+
+  if (!SpeechRecognition) {
+    alert("Speech recognition is not supported in this browser. Try Chrome.")
+    return
+  }
+
+  const recognition = new SpeechRecognition()
+  recognition.lang = "en-US"
+  recognition.interimResults = false
+  recognition.maxAlternatives = 1
+
+  recognition.onstart = () => {
+    setIsListening(true)
+  }
+
+  recognition.onend = () => {
+    setIsListening(false)
+  }
+
+  recognition.onerror = (event: any) => {
+    console.error("Speech recognition error:", event.error)
+    setIsListening(false)
+  }
+
+  recognition.onresult = (event: any) => {
+    const transcript = event.results[0][0].transcript
+    setMessage(transcript)
+
+    // Optional: auto-send after speech
+    // Uncomment the next lines if you want that:
+    // setTimeout(() => {
+    //   sendMessage()
+    // }, 100)
+  }
+
+  recognition.start()
+}
 
   const resetChat = async () => {
     setChat([])
@@ -141,10 +183,14 @@ function App() {
         />
 
         <div className="input-actions">
-          <button className="voice-btn" title="Voice input">
-            🎤
+          <button
+            className="voice-btn"
+            title={isListening ? "Listening..." : "Voice input"}
+            onClick={startListening}
+            disabled={isLoading || isListening}
+          >
+            {isListening ? "⏺" : "🎤"}
           </button>
-
           <button
             className="send-btn"
             title="Send message"
