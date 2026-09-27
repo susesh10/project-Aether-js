@@ -1,6 +1,6 @@
 import httpx
 
-SEARXNG_URL = "http://127.0.0.1:8080/search"
+SEARXNG_URL = "http://127.0.0.1:8888/search"
 
 def web_search(query: str, max_results: int = 5) -> list[dict]:
     if not query or not query.strip():

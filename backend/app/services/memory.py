@@ -23,16 +23,26 @@ def get_memory(user_id: str = DEFAULT_USER_ID) -> dict:
     # Remove MongoDB's internal _id for cleaner use
     memory.pop("_id", None)
     return memory
+
 def format_memory_for_prompt(memory: dict) -> str:
     name = memory.get("name") or "Unknown"
     goals = memory.get("goals") or []
     plans = memory.get("plans") or []
     preferences = memory.get("preferences") or []
-    tasks = memory.get("tasks") or []
+    raw_tasks = memory.get("tasks") or []
+
     goals_text = ", ".join(goals) if goals else "None yet"
     plans_text = ", ".join(plans) if plans else "None yet"
     preferences_text = ", ".join(preferences) if preferences else "None yet"
-    tasks_text = ", ".join(tasks) if tasks else "None yet"
+
+    if raw_tasks and isinstance(raw_tasks[0], dict):
+        tasks_text = "; ".join(
+            f"{t.get('id')}:{t.get('title')}[{t.get('status')}]"
+            for t in raw_tasks
+        ) or "None yet"
+    else:
+        # old string-style tasks, if any remain
+        tasks_text = ", ".join(raw_tasks) if raw_tasks else "None yet"
 
     return f"""
 Long-term memory about the user:
@@ -42,6 +52,7 @@ Long-term memory about the user:
 - Preferences: {preferences_text}
 - Tasks: {tasks_text}
 """.strip()
+
 def update_memory(fields: dict, user_id: str = DEFAULT_USER_ID) -> dict:
     memory_collection.update_one(
         {"user_id": user_id},
@@ -105,6 +116,7 @@ def update_task_status(
             update_memory({"tasks": tasks}, user_id)
             return task
     return None
+
 
 
 def list_tasks(user_id: str = DEFAULT_USER_ID) -> list:
