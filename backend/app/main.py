@@ -7,6 +7,21 @@ from app.services.memory import get_memory, update_memory, merge_memory_update, 
 from app.services.memory_extractor import extract_facts_from_chat
 from fastapi.responses import FileResponse
 from app.services.voice import text_to_speech
+from app.services.memory import add_task, update_task_status, list_tasks
+from pydantic import BaseModel
+from app.services.tools import web_search
+
+class SearchRequest(BaseModel):
+    query: str
+class TaskCreate(BaseModel):
+    title: str
+    steps: list[str] = []
+
+class TaskUpdate(BaseModel):
+    task_id: str
+    status: str
+    result: str = ""
+
 app = FastAPI(title="Akari")
 
 app.add_middleware(
@@ -76,6 +91,44 @@ async def chat(request: ChatRequest):
             "error": str(e),
             "history": conversation_history
         }
+
+@app.post("/search")
+async def search(body: SearchRequest):
+    results = web_search(body.query)
+    return {
+        "status": "success",
+        "query": body.query,
+        "results": results,
+        "message": None if results else "No results found",
+    }
+
+@app.get("/tasks")
+async def get_tasks():
+    return {
+        "status": "success",
+        "tasks": list_tasks()
+    }
+
+@app.post("/tasks")
+async def create_task(body: TaskCreate):
+    task = add_task(body.title, body.steps)
+    return {
+        "status": "success",
+        "task": task
+    }
+
+@app.post("/tasks/update")
+async def update_task(body: TaskUpdate):
+    task = update_task_status(body.task_id, body.status, body.result)
+    if not task:
+        return {
+            "status": "error",
+            "error": "Task not found"
+        }
+    return {
+        "status": "success",
+        "task": task
+    }
 
 @app.post("/clear-history")
 async def clear_history():
