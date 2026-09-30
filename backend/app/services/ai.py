@@ -1,6 +1,7 @@
 import json
 from groq import Groq
 from app.core.config import settings
+from app.services.tools import web_search, get_current_time
 from app.services.memory import (
     get_memory,
     format_memory_for_prompt,
@@ -54,6 +55,7 @@ Rules:
 - After tool results, answer briefly and naturally as Akari.
 - Do not invent search results. If search is empty, say you could not find much.
 - Prefer one tool call at a time when possible.
+- get_current_time: when the user asks the time, date, day, or season
 """
 
 # OpenAI-style tools (Groq supports this)
@@ -133,6 +135,17 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_time",
+            "description": "Get the current local date, time, timezone, and season. Use when the user asks what time it is, today's date, day of week, or season.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+    },
 ]
 
 
@@ -166,6 +179,9 @@ def _run_tool(name: str, arguments: dict) -> str:
         if name == "list_tasks":
             tasks = list_tasks()
             return json.dumps({"tasks": tasks})
+        
+        if name == "get_current_time":
+            return json.dumps(get_current_time())
 
         if name == "update_task":
             task_id = str(arguments.get("task_id", ""))
