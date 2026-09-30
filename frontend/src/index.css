@@ -52,8 +52,6 @@ html, body {
   transform: translateY(0);
 }
 
-/* Main Area + Chat */
-/* Active icon */
 .sidebar-btn.active {
   background-color: #7F44D7;
 }
@@ -130,7 +128,7 @@ html, body {
   margin-bottom: 4px;
 }
 
-/* Main stage (3D placeholder) */
+/* Main stage */
 .main-stage {
   flex: 1;
   display: flex;
@@ -152,8 +150,8 @@ html, body {
 /* Voice / presence orb */
 .voice-orb {
   position: relative;
-  width: 140px;
-  height: 140px;
+  width: 160px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -166,53 +164,95 @@ html, body {
   background: radial-gradient(circle at 30% 30%, #b794f6, #7F44D7 55%, #4c1d95);
   box-shadow: 0 0 28px rgba(127, 68, 215, 0.5);
   z-index: 2;
-  transition: transform 0.2s ease;
 }
 
-.orb-ring {
+/* Circular equalizer — centered on the orb */
+.wave-ring {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  border-radius: 50%;
-  border: 2px solid rgba(127, 68, 215, 0.45);
-  transform: translate(-50%, -50%) scale(0.75);
-  opacity: 0.35;
   pointer-events: none;
 }
 
-.orb-ring.delay {
-  border-color: rgba(95, 248, 216, 0.35);
+.wave-bar {
+  --i: 0;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: linear-gradient(to top, #7F44D7, #5FF8D8);
+  opacity: 0.25;
+  transform: translate(-50%, -50%)
+    rotate(calc(var(--i) * 15deg))
+    translateY(-58px)
+    scaleY(0.35);
 }
 
-/* Speaking — clear pulse */
+/* Speaking */
+.voice-orb.speaking .wave-bar {
+  opacity: 0.9;
+  animation: wave-bounce 0.9s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.04s);
+}
+
 .voice-orb.speaking .orb-core {
   animation: core-glow 0.9s ease-in-out infinite;
 }
 
-.voice-orb.speaking .orb-ring {
-  animation: pulse-ring 1.4s ease-out infinite;
+/* Thinking (only when not speaking) */
+.voice-orb.thinking:not(.speaking) .wave-bar {
+  opacity: 0.35;
+  animation: wave-think 1.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.05s);
 }
 
-.voice-orb.speaking .orb-ring.delay {
-  animation: pulse-ring 1.4s ease-out infinite;
-  animation-delay: 0.5s;
-}
-
-/* Thinking */
-.voice-orb.thinking .orb-core {
+.voice-orb.thinking:not(.speaking) .orb-core {
   animation: think-pulse 1.2s ease-in-out infinite;
 }
 
-@keyframes pulse-ring {
-  0% {
-    transform: translate(-50%, -50%) scale(0.7);
-    opacity: 0.7;
+@keyframes wave-bounce {
+  0%, 100% {
+    transform: translate(-50%, -50%)
+      rotate(calc(var(--i) * 15deg))
+      translateY(-58px)
+      scaleY(0.35);
   }
-  100% {
-    transform: translate(-50%, -50%) scale(1.35);
-    opacity: 0;
+  25% {
+    transform: translate(-50%, -50%)
+      rotate(calc(var(--i) * 15deg))
+      translateY(-58px)
+      scaleY(1.55);
+  }
+  50% {
+    transform: translate(-50%, -50%)
+      rotate(calc(var(--i) * 15deg))
+      translateY(-58px)
+      scaleY(0.5);
+  }
+  75% {
+    transform: translate(-50%, -50%)
+      rotate(calc(var(--i) * 15deg))
+      translateY(-58px)
+      scaleY(1.25);
+  }
+}
+
+@keyframes wave-think {
+  0%, 100% {
+    transform: translate(-50%, -50%)
+      rotate(calc(var(--i) * 15deg))
+      translateY(-58px)
+      scaleY(0.3);
+  }
+  50% {
+    transform: translate(-50%, -50%)
+      rotate(calc(var(--i) * 15deg))
+      translateY(-58px)
+      scaleY(0.7);
   }
 }
 
@@ -229,12 +269,7 @@ html, body {
 
 @keyframes think-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.06); opacity: 0.8; }
-}
-
-@keyframes think-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.08); opacity: 0.75; }
+  50% { transform: scale(1.06); opacity: 0.85; }
 }
 
 /* Current spoken line */
@@ -255,22 +290,7 @@ html, body {
   font-size: 1rem;
 }
 
-/* Your messages */
-.user {
-  align-self: flex-end;
-  background-color: #7F44D7;
-  color: #F5F5F5;
-  border-bottom-right-radius: 4px;
-}
-/*Akari nessages*/
-.assistant {
-  align-self: flex-start;
-  background-color: #FFF9DF;
-  color: #1A1A1A;
-  border-bottom-left-radius: 4px;
-}
-
-/* Input Bar - merged ChatGPT style */
+/* Input Bar */
 .input-bar {
   position: absolute;
   bottom: 30px;
@@ -291,7 +311,6 @@ html, body {
   border-color: #7F44D7;
 }
 
-/* Textarea merges into the bar */
 .input-bar textarea {
   flex: 1;
   border: none;
@@ -312,7 +331,6 @@ html, body {
   color: #8A8A9A;
 }
 
-/* Action buttons container */
 .input-actions {
   display: flex;
   align-items: center;
@@ -320,7 +338,6 @@ html, body {
   padding-bottom: 2px;
 }
 
-/* Circular buttons */
 .voice-btn,
 .send-btn {
   width: 40px;
@@ -334,11 +351,11 @@ html, body {
   font-size: 16px;
   transition: 0.2s ease;
 }
+
 .send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
 
 .voice-btn {
   background-color: #2A2A3A;
@@ -359,6 +376,7 @@ html, body {
   background-color: #5FF8D8;
   color: #0F0F17;
 }
+
 .send-btn:disabled:hover {
   background-color: #7F44D7;
   color: #FFFFFF;

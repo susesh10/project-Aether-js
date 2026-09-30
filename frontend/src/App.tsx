@@ -16,49 +16,49 @@ function App() {
     e.target.style.height = `${e.target.scrollHeight}px`
   }
 
-const playBackendSpeech = async (text: string) => {
-  if (!text.trim()) return
+  const playBackendSpeech = async (text: string) => {
+    if (!text.trim()) return
 
-  try {
-    const response = await fetch("http://localhost:8000/speak", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text }),
-    })
-
-    if (!response.ok) {
-      console.error("Speech request failed")
-      return
-    }
-
-    const audioBlob = await response.blob()
-    const audioUrl = URL.createObjectURL(audioBlob)
-    const audio = new Audio(audioUrl)
-
-    setIsSpeaking(true)
-
-    await new Promise<void>((resolve) => {
-      audio.onended = () => {
-        setIsSpeaking(false)
-        URL.revokeObjectURL(audioUrl)
-        resolve()
-      }
-      audio.onerror = () => {
-        setIsSpeaking(false)
-        URL.revokeObjectURL(audioUrl)
-        resolve()
-      }
-      audio.play().catch(() => {
-        setIsSpeaking(false)
-        URL.revokeObjectURL(audioUrl)
-        resolve()
+    try {
+      const response = await fetch("http://localhost:8000/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
       })
-    })
-  } catch (error) {
-    console.error("Speech playback error:", error)
-    setIsSpeaking(false)
+
+      if (!response.ok) {
+        console.error("Speech request failed")
+        return
+      }
+
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const audio = new Audio(audioUrl)
+
+      setIsSpeaking(true)
+
+      await new Promise<void>((resolve) => {
+        audio.onended = () => {
+          setIsSpeaking(false)
+          URL.revokeObjectURL(audioUrl)
+          resolve()
+        }
+        audio.onerror = () => {
+          setIsSpeaking(false)
+          URL.revokeObjectURL(audioUrl)
+          resolve()
+        }
+        audio.play().catch(() => {
+          setIsSpeaking(false)
+          URL.revokeObjectURL(audioUrl)
+          resolve()
+        })
+      })
+    } catch (error) {
+      console.error("Speech playback error:", error)
+      setIsSpeaking(false)
+    }
   }
-}
 
   const sendMessage = async () => {
     if (isLoading) return
@@ -81,20 +81,24 @@ const playBackendSpeech = async (text: string) => {
         body: JSON.stringify({ message: currentMessage }),
       })
 
+      if (!response.ok) {
+        throw new Error(`Chat failed: ${response.status}`)
+      }
+
       const data = await response.json()
       const reply = data.reply || "..."
 
       setChat((prev) => [...prev, { role: "assistant", content: reply }])
       setCurrentReply(reply)
+      setIsLoading(false)
       await playBackendSpeech(reply)
     } catch (error) {
       console.error("Error sending message:", error)
       const fallback = "Sorry, something went wrong."
       setChat((prev) => [...prev, { role: "assistant", content: fallback }])
       setCurrentReply(fallback)
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -159,7 +163,7 @@ const playBackendSpeech = async (text: string) => {
         </button>
       </div>
 
-      {/* History side panel — only when C is open */}
+      {/* History side panel */}
       {historyOpen && (
         <div className="history-panel">
           <div className="history-header">
@@ -189,28 +193,30 @@ const playBackendSpeech = async (text: string) => {
         </div>
       )}
 
-      {/* Main stage — current line + voice anim (3D later) */}
+      {/* Main stage */}
       <div className="main-stage">
         <div className="stage-center">
-          {/* Placeholder for future 3D model */}
           <div
-           className={`voice-orb ${isSpeaking ? "speaking" : ""} ${isLoading ? "thinking" : ""}`}
-         >
-           <div className="wave-ring" aria-hidden="true">
-             {Array.from({ length: 24 }).map((_, i) => (
-               <span
-                 key={i}
-                 className="wave-bar"
-                 style={{ ["--i" as string]: i }}
-               />
-             ))}
-           </div>
-         
-           <div className="orb-core" />
-         </div>
+            className={`voice-orb ${isSpeaking ? "speaking" : ""} ${
+              isLoading && !isSpeaking ? "thinking" : ""
+            }`}
+          >
+            <div className="wave-ring" aria-hidden="true">
+              {Array.from({ length: 24 }).map((_, i) => (
+                <span
+                  key={i}
+                  className="wave-bar"
+                  style={{ ["--i" as string]: i }}
+                />
+              ))}
+            </div>
+            <div className="orb-core" />
+          </div>
 
           <div className="current-line">
-            {isLoading && <p className="line-text muted">Akari is thinking...</p>}
+            {isLoading && (
+              <p className="line-text muted">Akari is thinking...</p>
+            )}
             {!isLoading && currentReply && (
               <p className="line-text">{currentReply}</p>
             )}
