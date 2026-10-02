@@ -1,5 +1,6 @@
 from app.core.database import memory_collection
 
+
 DEFAULT_USER_ID = "default"
 
 def get_default_memory():
@@ -122,3 +123,73 @@ def update_task_status(
 def list_tasks(user_id: str = DEFAULT_USER_ID) -> list:
     memory = get_memory(user_id)
     return memory.get("tasks", [])
+
+def get_progress_summary(user_id: str = DEFAULT_USER_ID) -> dict:
+    memory = get_memory(user_id)
+    goals = memory.get("goals") or []
+    plans = memory.get("plans") or []
+    raw_tasks = memory.get("tasks") or []
+
+    tasks = raw_tasks if raw_tasks and isinstance(raw_tasks[0], dict) else []
+    # if old string tasks, treat as open todos with no id
+    if raw_tasks and not tasks:
+        tasks = [{"id": str(i + 1), "title": t, "status": "todo"} for i, t in enumerate(raw_tasks) if t]
+
+    todo = [t for t in tasks if t.get("status") == "todo"]
+    in_progress = [t for t in tasks if t.get("status") == "in_progress"]
+    done = [t for t in tasks if t.get("status") == "done"]
+
+    def brief(items, limit=8):
+        out = []
+        for t in items[:limit]:
+            out.append({"id": t.get("id"), "title": t.get("title"), "status": t.get("status")})
+        return out
+
+    return {
+        "name": memory.get("name") or "",
+        "goals": goals[:10],
+        "plans": plans[:10],
+        "counts": {
+            "todo": len(todo),
+            "in_progress": len(in_progress),
+            "done": len(done),
+            "total_tasks": len(tasks),
+        },
+        "open_tasks": brief(todo + in_progress),
+        "recent_done": brief(list(reversed(done))[:5]),
+    }
+def delete_task(task_id: str = "", title: str = "", user_id: str = DEFAULT_USER_ID) -> dict | None:
+    """Remove a task by id or by matching title (case-insensitive)."""
+    memory = get_memory(user_id)
+    tasks = memory.get("tasks") or []
+    if not tasks:
+        return None
+
+    remaining = []
+    removed = None
+    title_l = (title or "").strip().lower()
+
+    for task in tasks:
+        if not isinstance(task, dict):
+            remaining.append(task)
+            continue
+        match_id = task_id and str(task.get("id")) == str(task_id)
+        match_title = title_l and (task.get("title") or "").strip().lower() == title_l
+        if removed is None and (match_id or match_title):
+            removed = task
+            continue
+        remaining.append(task)
+
+    if removed is None and title_l:
+        # partial title match as fallback
+        for task in tasks:
+            if isinstance(task, dict) and title_l in (task.get("title") or "").lower():
+                removed = task
+                remaining = [t for t in tasks if t is not removed]
+                break
+
+    if removed is None:
+        return None
+
+    update_memory({"tasks": remaining}, user_id)
+    return removed

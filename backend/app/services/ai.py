@@ -8,8 +8,17 @@ from app.services.memory import (
     add_task,
     list_tasks,
     update_task_status,
+    delete_task,
+    get_progress_summary,
 )
-from app.services.tools import web_search
+from app.services.memory import (
+    get_memory,
+    format_memory_for_prompt,
+    add_task,
+    list_tasks,
+    update_task_status,
+    get_progress_summary,
+)
 
 class ReplyProcessor:
     @staticmethod
@@ -55,7 +64,10 @@ Rules:
 - After tool results, answer briefly and naturally as Akari.
 - Do not invent search results. If search is empty, say you could not find much.
 - Prefer one tool call at a time when possible.
-- get_current_time: when the user asks the time, date, day, or season
+- get_current_time: when the user asks the time, date, day, or season.
+- get_progress: when the user asks how they are doing, progress, goals, or a summary of tasks.
+- delete_task: when the user asks to remove or delete a task.
+-Do not use markdown (no **, ##, tables, or bullet symbols). Write in plain natural sentences.
 """
 
 # OpenAI-style tools (Groq supports this)
@@ -146,6 +158,28 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_progress",
+            "description": "Summarize the user's goals, plans, and task progress (todo, in progress, done).",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_task",
+            "description": "Permanently delete a task from the user's list. Use when the user asks to remove or delete a task.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "Task id if known"},
+                    "title": {"type": "string", "description": "Task title to match if id unknown"},
+                },
+            },
+        },
+    },
 ]
 
 
@@ -191,6 +225,17 @@ def _run_tool(name: str, arguments: dict) -> str:
             if not task:
                 return json.dumps({"error": "task not found", "task_id": task_id})
             return json.dumps({"updated": task})
+        
+        if name == "get_progress":
+            return json.dumps(get_progress_summary())
+        
+        if name == "delete_task":
+            task_id = str(arguments.get("task_id") or "")
+            title = (arguments.get("title") or "").strip()
+            removed = delete_task(task_id=task_id, title=title)
+            if not removed:
+                return json.dumps({"error": "task not found", "task_id": task_id, "title": title})
+            return json.dumps({"deleted": removed})
 
         return json.dumps({"error": f"Unknown tool: {name}"})
     except Exception as e:
