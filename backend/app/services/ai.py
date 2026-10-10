@@ -1,6 +1,6 @@
 import json
 from groq import Groq
-from app.core.config import settings
+from app.core.config import settings, resolve_model
 from app.services.tools import web_search, get_current_time
 from app.services.memory import (
     get_memory,
@@ -11,14 +11,7 @@ from app.services.memory import (
     delete_task,
     get_progress_summary,
 )
-from app.services.memory import (
-    get_memory,
-    format_memory_for_prompt,
-    add_task,
-    list_tasks,
-    update_task_status,
-    get_progress_summary,
-)
+
 
 class ReplyProcessor:
     @staticmethod
@@ -54,29 +47,39 @@ You never break character. You are not a generic AI assistant — you are Akari.
 Always reply in English unless the user explicitly asks for another language.
 
 You can use tools when they help:
-- web_search: for current facts, news, scores, documentation, anything that may change
-- create_task: when the user wants a reminder or todo saved
-- list_tasks: when the user asks what tasks they have
-- update_task: when the user marks a task done or changes status
+- web_search: current facts, news, sports, release dates, schedules, prices — anything that changes over time
+- create_task: save a new todo for the user
+- list_tasks: show the user's tasks
+- update_task: change task status (todo, in_progress, done)
+- delete_task: permanently remove a task
+- get_current_time: time, date, day of week, season
+- get_progress: goals, plans, and task progress summary
 
-Rules:
+Hard rules for facts:
+- For news, movie/game release dates, sports scores, or "latest/upcoming" lists: you MUST call web_search before answering.
+- After search, ONLY use titles, dates, and facts that appear in the tool results. Do not invent films, dates, or casts to fill gaps.
+- If results are thin, outdated, or conflicting, say so briefly and list only what you can support.
+- Never present a guessed schedule as "official."
+- Never say "only these" or "no date set" unless the sources say that.
+
+Other rules:
 - Use a tool only when it clearly helps. Normal chat needs no tool.
 - After tool results, answer briefly and naturally as Akari.
-- Do not invent search results. If search is empty, say you could not find much.
 - Prefer one tool call at a time when possible.
-- get_current_time: when the user asks the time, date, day, or season.
-- get_progress: when the user asks how they are doing, progress, goals, or a summary of tasks.
-- delete_task: when the user asks to remove or delete a task.
--Do not use markdown (no **, ##, tables, or bullet symbols). Write in plain natural sentences.
+
+Formatting:
+- Normal chat: short natural sentences.
+- For lists, progress, goals, or several facts you may use light markdown: **bold**, bullet lists, or a small markdown table.
+- Do not use HTML.
+- Keep replies concise so they still work when spoken aloud.
 """
 
-# OpenAI-style tools (Groq supports this)
 TOOLS = [
     {
         "type": "function",
         "function": {
             "name": "web_search",
-            "description": "Search the web for current information. Use for news, scores, docs, facts that may change.",
+            "description": "Search the web for current information. Use for news, scores, docs, release schedules, and facts that may change. Prefer specific queries (e.g. 'MCU Marvel movie release schedule 2026 2027 official').",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -150,8 +153,28 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "delete_task",
+            "description": "Permanently delete a task from the user's list.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "Task id if known",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Task title to match if id unknown",
+                    },
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_current_time",
-            "description": "Get the current local date, time, timezone, and season. Use when the user asks what time it is, today's date, day of week, or season.",
+            "description": "Get the current local date, time, timezone, and season.",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -163,20 +186,9 @@ TOOLS = [
         "function": {
             "name": "get_progress",
             "description": "Summarize the user's goals, plans, and task progress (todo, in progress, done).",
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "delete_task",
-            "description": "Permanently delete a task from the user's list. Use when the user asks to remove or delete a task.",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "task_id": {"type": "string", "description": "Task id if known"},
-                    "title": {"type": "string", "description": "Task title to match if id unknown"},
-                },
+                "properties": {},
             },
         },
     },
@@ -188,10 +200,11 @@ def _run_tool(name: str, arguments: dict) -> str:
     try:
         if name == "web_search":
             query = (arguments.get("query") or "").strip()
-            results = web_search(query, max_results=5)
+            results = web_search(query, max_results=8)
             if not results:
-                return json.dumps({"query": query, "results": [], "note": "No results found"})
-            # Compact for tokens
+                return json.dumps(
+                    {"query": query, "results": [], "note": "No results found"}
+                )
             compact = [
                 {
                     "title": r.get("title", ""),
@@ -211,11 +224,7 @@ def _run_tool(name: str, arguments: dict) -> str:
             return json.dumps({"created": task})
 
         if name == "list_tasks":
-            tasks = list_tasks()
-            return json.dumps({"tasks": tasks})
-        
-        if name == "get_current_time":
-            return json.dumps(get_current_time())
+            return json.dumps({"tasks": list_tasks()})
 
         if name == "update_task":
             task_id = str(arguments.get("task_id", ""))
@@ -225,24 +234,32 @@ def _run_tool(name: str, arguments: dict) -> str:
             if not task:
                 return json.dumps({"error": "task not found", "task_id": task_id})
             return json.dumps({"updated": task})
-        
-        if name == "get_progress":
-            return json.dumps(get_progress_summary())
-        
+
         if name == "delete_task":
             task_id = str(arguments.get("task_id") or "")
             title = (arguments.get("title") or "").strip()
             removed = delete_task(task_id=task_id, title=title)
             if not removed:
-                return json.dumps({"error": "task not found", "task_id": task_id, "title": title})
+                return json.dumps(
+                    {"error": "task not found", "task_id": task_id, "title": title}
+                )
             return json.dumps({"deleted": removed})
+
+        if name == "get_current_time":
+            return json.dumps(get_current_time())
+
+        if name == "get_progress":
+            return json.dumps(get_progress_summary())
 
         return json.dumps({"error": f"Unknown tool: {name}"})
     except Exception as e:
         return json.dumps({"error": str(e)})
 
 
-def get_ai_reply(conversation_history: list) -> dict:
+def get_ai_reply(conversation_history: list, model: str | None = None) -> dict:
+    model_id = resolve_model(model)
+    print(f"[agent] model={model_id}")
+
     memory = get_memory()
     memory_text = format_memory_for_prompt(memory)
 
@@ -254,11 +271,11 @@ def get_ai_reply(conversation_history: list) -> dict:
         *conversation_history,
     ]
 
-    max_rounds = 3  # safety: avoid endless tool loops
+    max_rounds = 3
 
     for _ in range(max_rounds):
         response = client.chat.completions.create(
-            model=settings.MODEL_NAME,
+            model=model_id,
             messages=messages,
             tools=TOOLS,
             tool_choice="auto",
@@ -268,13 +285,11 @@ def get_ai_reply(conversation_history: list) -> dict:
 
         message = response.choices[0].message
 
-        # No tool call → final answer
         if not message.tool_calls:
             full_reply = message.content or ""
             reply, emotion = ReplyProcessor.extract_reply(full_reply)
             return {"reply": reply, "emotion": emotion}
 
-        # Model requested tools — append assistant message, run tools, continue
         messages.append(
             {
                 "role": "assistant",
@@ -311,9 +326,8 @@ def get_ai_reply(conversation_history: list) -> dict:
                 }
             )
 
-    # If we hit max rounds, force a short reply without tools
     response = client.chat.completions.create(
-        model=settings.MODEL_NAME,
+        model=model_id,
         messages=messages
         + [
             {

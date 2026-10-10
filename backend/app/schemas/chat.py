@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 class ChatRequest(BaseModel):
     message: str
+    model: Optional[str] = None
 
 class ChatResponse(BaseModel):
     reply: str

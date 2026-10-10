@@ -55,7 +55,7 @@ async def chat(request: ChatRequest):
             "content": request.message
         })
 
-        ai_response = get_ai_reply(conversation_history)
+        ai_response = get_ai_reply(conversation_history, model=request.model)
 
         reply = ai_response["reply"]
         emotion = ai_response["emotion"]

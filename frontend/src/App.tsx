@@ -1,4 +1,6 @@
 import { useState, useRef, type ChangeEvent, type KeyboardEvent } from "react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 function App() {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -186,7 +188,15 @@ function App() {
                 <span className="history-role">
                   {msg.role === "user" ? "You" : "Akari"}
                 </span>
-                <p>{msg.content}</p>
+                <div className="history-body">
+                  {msg.role === "assistant" ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content}
+                  </ReactMarkdown>
+                  ) : (
+                  <p>{msg.content}</p>
+                )}
+                </div>
               </div>
             ))}
           </div>
